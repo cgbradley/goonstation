@@ -110,6 +110,166 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/datum/bioEffect/power/tsunami
+	name = "Tsunami"
+	desc = "Allows the subject to control a massive wave of water."
+	id = "tsunami"
+	msgGain = "You notice a wetness in your hands."
+	msgLose = "Your hands feel dry."
+	effectType = EFFECT_TYPE_POWER
+	cooldown = 600
+	occur_in_genepools = 0
+	stability_loss = 15
+	ability_path = /datum/targetable/geneticsAbility/tsunami
+
+/datum/targetable/geneticsAbility/tsunami
+	name = "Tsunami"
+	desc = "Exert control over a massive wave of water."
+	icon_state = "tsunami"
+	targeted = TRUE
+	target_anything = TRUE
+
+	cast(atom/target)
+		if (..())
+			return 1
+
+		target.visible_message("<span class='alert'><b>[owner]</b> points at [target]!</span>")
+		new/obj/tsunami_wave(get_turf(owner), target, linked_power.power)
+		/*particleMaster.SpawnSystem(new /datum/particleSystem/tele_wand(get_turf(target),"8x8snowflake","#88FFFF"))
+
+		var/obj/decal/icefloor/B
+		for (var/turf/TF in range(linked_power.power - 1,T))
+			B = new /obj/decal/icefloor(TF)
+			SPAWN(80 SECONDS)
+				B.dispose()
+
+		for (var/mob/living/L in T.contents)
+			if (L == owner && linked_power.safety)
+				continue
+			boutput(L, "<span class='notice'>You are struck by a wave of water!</span>")
+			if(L.getStatusDuration("burning"))
+				L.delStatus("burning")
+			L.bodytemperature = 100
+			if (linked_power.power > 1)
+				new /obj/icecube(get_turf(L), L)
+		*/
+
+
+
+	cast_misfire(atom/target)
+		if (..())
+			return 1
+
+		owner.visible_message("<span class='alert'><b>[owner]</b> points at [target]!</span>")
+		playsound(owner.loc, "sound/effects/bamf.ogg", 50, 0)
+		//particleMaster.SpawnSystem(new /datum/particleSystem/tele_wand(get_turf(owner),"8x8snowflake","#88FFFF"))
+
+		if (!linked_power.safety)
+			boutput(owner, "<span class='alert'>Your tsunami misfires and blasts you!</span>")
+			if(owner.getStatusDuration("burning"))
+				owner.delStatus("burning")
+			owner.TakeDamage("chest", 5, 0, 0, DAMAGE_BLUNT)
+			owner.changeStatus("stunned", 3 SECONDS)
+			//owner.bodytemperature = 286
+		else
+			boutput(owner, "<span class='alert'>Your tsunami misfires!</span>")
+			if(owner.getStatusDuration("burning"))
+				owner.delStatus("burning")
+			owner.changeStatus("stunned", 2 SECONDS)
+
+/obj/tsunami_wave
+	New(var/_loc, var/atom/target, var/_empowered)
+		..()
+		set_loc(_loc)
+		playsound(loc, 'sound/effects/bigwave.ogg', 70, 1)
+		create_reagents(5+((_empowered-1)*55))
+		reagents.add_reagent("water", 10)
+		var/direction = src.dir
+		if(target)
+			direction = get_dir_alt(src, target)
+		if(direction == NORTHEAST || direction == NORTHWEST || direction == SOUTHEAST || direction == SOUTHWEST)
+			direction = turn(direction, 45)
+		switch(direction)
+			if(NORTH)
+				pixel_x = -32
+			if(EAST)
+				pixel_y = -32
+			if(SOUTH)
+				pixel_x = -32
+				pixel_y = -64
+			if(WEST)
+				pixel_x = -64
+				pixel_y = -32
+		var/matrix/M = matrix()
+		M = M.Scale(0,0)
+		src.transform = M
+		animate(src, transform=matrix(), time = 20, easing = ELASTIC_EASING)
+		SPAWN(0)
+			go(direction, 3*_empowered)
+
+	proc/go(var/direction, var/_length)
+		src.set_dir(direction)
+		hit(direction)
+		for(var/i=0, i<_length, i++)
+			var/turf/T = get_step(src.loc, direction)
+			if(!isnull(T))
+				var/blocked = 0
+				for(var/atom/movable/A in T)
+					if(A.density && A.anchored && !ismob(A))
+						blocked = 1
+						break
+				if(T.density || blocked)
+					return vanish()
+				else
+					src.set_loc(T)
+					hit(direction)
+					src.set_dir(direction)
+			sleep(0.1 SECONDS)
+		vanish()
+		return
+
+	proc/vanish()
+		animate(src, alpha = 0, time = 5)
+		SPAWN(0.5 SECONDS)
+			src.invisibility = INVIS_ALWAYS
+			src.set_loc(null)
+			qdel(src)
+		return
+
+	proc/hit(var/direction)
+		var/turf/left
+		var/turf/right
+		switch(direction)
+			if(NORTH)
+				left = locate(x-1,y,z)
+				right = locate(x+1,y,z)
+			if(EAST)
+				left = locate(x,y+1,z)
+				right = locate(x,y-1,z)
+			if(SOUTH)
+				left = locate(x+1,y,z)
+				right = locate(x-1,y,z)
+			if(WEST)
+				left = locate(x,y-1,z)
+				right = locate(x,y+1,z)
+
+		var/list/affected = list(src.loc, left, right)
+		for(var/turf/B in affected)
+			reagents.reaction(B)
+			for(var/mob/living/Z in B)
+				Z.changeStatus("stunned", 6 SECONDS)
+			for (var/atom/A in B)
+				if (istype(A, /obj/overlay/tile_effect) || A.invisibility >= INVIS_ALWAYS_ISH)
+					continue
+				reagents.reaction(A)
+		/*for(var/mob/living/Z in affected.contents)
+			Z.changeStatus("stunned", 6 SECONDS)*/
+		return
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /datum/bioEffect/power/mattereater
 	name = "Matter Eater"
 	desc = "Allows the subject to eat just about anything without harm."

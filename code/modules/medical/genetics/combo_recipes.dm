@@ -278,6 +278,10 @@
 	required_effects = list("farty","bigpuke")
 	result = /datum/bioEffect/power/shoot_limb
 
+/datum/geneticsrecipe/tsunami
+	required_effects = list("cryokinesis","fire_breath")
+	result = /datum/bioEffect/power/tsunami
+
 // Mutantraces
 
 /datum/geneticsrecipe/seenoevil
